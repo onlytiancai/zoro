@@ -10,6 +10,9 @@
 
 zoro用来定时收集你服务器运行状态、性能、业务等信息，根据你定义好的规则，发现异常后通知你。
 
+zoro定位是一个很简单就能安装使用的本机监控软件，不需要运营一个网站，
+而且强调扩展性，让人们去开发各种插件满足不同的监控需求以及和自己的监控系统集成。
+
 ### 快速上手
 
 下载安装
@@ -79,9 +82,9 @@ zoro用来定时收集你服务器运行状态、性能、业务等信息，根�
 
 ### 其它
 
-本软件默认功能能满足大多数用户的基本需求，但它很容易扩展，
-如果你有兴趣进一步了解并参与这个项目，可以看[详细文档](https://github.com/onlytiancai/zoro/blob/master/docs/details.md)。
+如果你有兴趣进一步了解并参与这个项目，可以阅读如下链接。
 
+1. [详细文档](https://github.com/onlytiancai/zoro/blob/master/docs/details.md)
 1. [给我提issue](https://github.com/onlytiancai/zoro/issues)
 1. [开发中遇到的挑战](https://github.com/onlytiancai/zoro/blob/master/docs/challenge.md)
 1. [TODO list](https://github.com/onlytiancai/zoro/blob/master/docs/todo.md)
