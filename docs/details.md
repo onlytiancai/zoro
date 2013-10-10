@@ -25,3 +25,7 @@ src目录下的loggers,counters, rules, senders子目录各有一个插件的示
 1. /var/log/wawa-warning-agent.log: 保存程序运行的日志，如果程序运行出错，可以看这里。
    该日志没有设置自动滚动，请自行用logrotate来滚动压缩该日志。
 1. /var/log/wawa-warning-agent-counter.log: 该文件是默认logger保存计数信息的地方，会自动滚动。
+
+### logo图片来源
+
+http://media.animevice.com/uploads/2/23751/542171-inuyasha_vs_zoro_5389_super.png

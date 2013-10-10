@@ -2,6 +2,8 @@
 
 我们的目标是让每一台服务器都安装有zoro。
 
+![zoro](https://raw.github.com/onlytiancai/zoro/master/docs/zoro.png)
+
 ### 简单介绍###
 
 你的网站，VPS，服务器的性能，业务都需要进行监控，并在异常的时候及时通知你。
@@ -80,4 +82,6 @@ zoro用来定时收集你服务器运行状态、性能、业务等信息，根�
 本软件默认功能能满足大多数用户的基本需求，但它很容易扩展，
 如果你有兴趣进一步了解并参与这个项目，可以看[详细文档](https://github.com/onlytiancai/zoro/blob/master/docs/details.md)。
 
-如果你有什么疑问，可以[给我提issue](https://github.com/onlytiancai/zoro/issues)
+1. [给我提issue](https://github.com/onlytiancai/zoro/issues)
+1. [开发中遇到的挑战](https://github.com/onlytiancai/zoro/blob/master/docs/challenge.md)
+1. [TODO list](https://github.com/onlytiancai/zoro/blob/master/docs/todo.md)
