@@ -1,7 +1,19 @@
 language: python
+
+branches:
+    except:
+        - gh-pages
+
+
 python:
     - "2.7"
+
+env:
+    - TOXENV=py27
+
+
 install: 
-    - "pip install -r requirements.txt --use-mirrors"
+    - pip install tox --use-mirrors
+
 script: 
-    - "python setup.py test"
+    - tox 

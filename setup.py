@@ -1,39 +1,73 @@
 # -*- encoding: utf-8 -*-
-from __future__ import print_function
+import sys
+import os
 from setuptools import setup
 from setuptools.command.test import test as TestCommand
-import io
-import os
-import sys
 
 import zoro
 
-here = os.path.abspath(os.path.dirname(__file__))
 
+class PyTest(TestCommand):
+    test_package_name = 'zoro'
 
-def read(*filenames, **kwargs):
-    encoding = kwargs.get('encoding', 'utf-8')
-    sep = kwargs.get('sep', '\n')
-    buf = []
-    for filename in filenames:
-        with io.open(filename, encoding=encoding) as f:
-            buf.append(f.read())
-    return sep.join(buf)
-
-long_description = read('README.md', 'CHANGES.md')
-
-
-class Tox(TestCommand):
     def finalize_options(self):
         TestCommand.finalize_options(self)
-        self.test_args = []
+        _test_args = [
+            '--verbose',
+            '--ignore=build',
+            '--cov={0}'.format(self.test_package_name),
+            '--cov-report=term-missing',
+            '--pep8',
+        ]
+        extra_args = os.environ.get('PYTEST_EXTRA_ARGS')
+        if extra_args is not None:
+            _test_args.extend(extra_args.split())
+        self.test_args = _test_args
         self.test_suite = True
 
     def run_tests(self):
-        #import here, cause outside the eggs aren't loaded
-        import tox
-        errcode = tox.cmdline(self.test_args)
-        sys.exit(errcode)
+        import pytest
+        from pkg_resources import normalize_path, _namespace_packages
+
+        # Purge modules under test from sys.modules. The test loader will
+        # re-import them from the build location. Required when 2to3 is used
+        # with namespace packages.
+        if sys.version_info >= (3,) and getattr(self.distribution, 'use_2to3', False):
+            #module = self.test_args[-1].split('.')[0]
+            module = self.test_package_name
+            if module in _namespace_packages:
+                del_modules = []
+                if module in sys.modules:
+                    del_modules.append(module)
+                module += '.'
+                for name in sys.modules:
+                    if name.startswith(module):
+                        del_modules.append(name)
+                map(sys.modules.__delitem__, del_modules)
+
+            ## Run on the build directory for 2to3-built code
+            ## This will prevent the old 2.x code from being found
+            ## by py.test discovery mechanism, that apparently
+            ## ignores sys.path..
+            ei_cmd = self.get_finalized_command("egg_info")
+
+            ## Replace the module name with normalized path
+            #self.test_args[-1] = normalize_path(ei_cmd.egg_base)
+            self.test_args.append(normalize_path(ei_cmd.egg_base))
+
+        errno = pytest.main(self.test_args)
+        sys.exit(errno)
+
+
+tests_require = [
+    'pytest',
+    'pytest-pep8',
+    'pytest-cov',
+]
+
+extra = {}
+if sys.version_info >= (3,):
+    extra['use_2to3'] = True
 
 setup(
     name='zoro',
@@ -41,16 +75,14 @@ setup(
     url='https://github.com/onlytiancai/zoro',
     license='MIT License (MIT)',
     author='onlytiancai',
-    tests_require=['pytest', 'tox'],
     install_requires=[],
-    cmdclass={'test': Tox},
     author_email='onlytiancai@gmail.com',
     description=u'一个可扩展的单机监控软件',
-    long_description=long_description,
+    long_description=open('README.md').read(),
     packages=['zoro'],
     include_package_data=True,
     platforms='any',
-    test_suite='zoro.test.test_zoro',
+    test_suite='zoro.tests',
     classifiers=['Programming Language :: Python',
                  'Development Status :: 3 - Alpha',
                  'Natural Language :: Chinese (Simplified)',
@@ -61,7 +93,8 @@ setup(
                  'Topic :: System :: Monitoring',
                  # https://pypi.python.org/pypi?:action=list_classifiers
                  ],
-    extras_require={
-        'testing': ['pytest'],
-    }
+    tests_require=tests_require,
+    cmdclass={'test': PyTest},
+    **extra
+
 )
