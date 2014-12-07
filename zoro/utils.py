@@ -31,7 +31,7 @@ def init_logger(log_dir, level='info', console=False):
     level = logging._levelNames.get(level.upper(), logging.INFO)
     logger.setLevel(level)
     handler = logging.handlers.RotatingFileHandler(log_file, maxBytes=100 * 1000 * 1000, backupCount=10)
-    formatter = logging.Formatter('%(asctime)s - %(message)s')
+    formatter = logging.Formatter('%(asctime)s %(levelname)s (%(module)s)[%(process)d] - %(message)s')
     handler.setFormatter(formatter)
     if console:
         consoleHandler = logging.StreamHandler()
@@ -62,5 +62,4 @@ def run_rules(cfg):
         if hasattr(module, "init"):
             module.init(cfg)
 
-    for rule in rules:
-        rule_runner.run(rule, cfg, plugins[rule['type']])
+    rule_runner.runall(rules, cfg, plugins)

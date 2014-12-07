@@ -2,29 +2,40 @@
 # -*- coding: utf-8 -*-
 import logging
 import time
-import threading
-
-class Runner(threading.Thread):
-    def __init__(self, rule, cfg, module):
-        threading.Thread.__init__(self, name="plug:" + rule["type"])
-        self.setDaemon(True)
-        self.rule = rule
-        self.cfg = cfg
-        self.module = module
-     
-    def run(self):
-        run_interval = self.rule.get("run_interval", self.cfg.get("run_interval", 60))
-        args = self.rule.get("args", {})
-        logging.exception("plugin %s runing:%s %s", self.rule["type"], run_interval, args)
-        while True:
-            try:
-                self.module.do(**args)
-            except:
-                logging.exception("plugin %s run error:%s", self.rule["type"], args)
-            finally:
-                time.sleep(run_interval)
-   
+import multiprocessing
 
 def run(rule, cfg, module):
-    runner = Runner(rule, cfg, module)
-    runner.start()
+    args = rule.get("args", {})
+    logging.debug("plugin %s runing:%s", rule["type"], args)
+    try:
+        module.do(**args)
+    except:
+        logging.exception("plugin %s run error:%s", rule["type"], args)
+    time.sleep(60)
+
+
+def runall(rules, cfg, plugins):
+    run_interval = cfg.get("run_interval", 60)
+    run_timeout = cfg.get("run_timeout", 5)
+    logging.debug("runall:%s", run_interval)
+    while True:
+        try:
+            ps = []
+            for rule in rules:
+                p = multiprocessing.Process(target=run, args=(rule, cfg, plugins[rule['type']]))
+                p.daemon = True
+                ps.append(p)
+
+            for p in ps:
+                p.start()
+            
+            begin_time = time.time()
+            for p in ps:
+                timeout = abs(run_timeout - (time.time() - begin_time))
+                logging.debug('process join:%s', timeout)
+                p.join(timeout)
+                if p.is_alive():
+                    p.terminate()
+                    p.join()
+        finally:
+            time.sleep(run_interval)

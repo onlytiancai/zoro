@@ -5,6 +5,12 @@
             "args": {
                 "target": "http://www.baidu.com"
             }
+        },
+        {
+            "type": "curl",
+            "args": {
+                "target": "https://www.dnspod.cn"
+            }
         }
         ],
     "run_interval": 5
