@@ -10,6 +10,11 @@ import utils
 utils.init_logger(config.log_dir, config.log_level, config.log_console)
 logging.debug("zoro start")
 
-with daemon.DaemonContext():
-    while True:
-        time.sleep(1)
+utils.init_for_setup()
+
+zorocfg = utils.load_user_config(config.user_config_path)
+utils.run_rules(zorocfg)
+
+#with daemon.DaemonContext():
+#    while True:
+#        time.sleep(1)

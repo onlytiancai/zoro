@@ -1,0 +1,10 @@
+{
+    "rules": [
+        {
+            "type": "curl",
+            "args": {
+                "target": "http://www.baidu.com"
+            }
+        }
+        ]
+}
