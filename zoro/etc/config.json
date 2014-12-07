@@ -6,5 +6,6 @@
                 "target": "http://www.baidu.com"
             }
         }
-        ]
+        ],
+    "run_interval": 5
 }

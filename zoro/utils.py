@@ -8,6 +8,7 @@ import imp
 import shutil
 
 import config 
+import rule_runner 
 
 def init_for_setup():
     logging.debug("init_for_setup %s %s", config.user_config_path, config.user_plugins_path)
@@ -17,6 +18,8 @@ def init_for_setup():
     if not os.path.exists(config.user_config_path):
         shutil.copy('./etc/config.json', config.user_config_path)
 
+    # TODO
+    shutil.copy('./etc/config.json', config.user_config_path)
 
 def init_logger(log_dir, level='info', console=False):
     if not os.path.exists(log_dir):
@@ -45,7 +48,8 @@ def load_user_config(config_path):
 
 def run_rules(cfg):
     plugins = {}
-    for rule in cfg['rules']:
+    rules = cfg.get('rules', [])
+    for rule in rules:
         module_name = rule["type"]
         if module_name in plugins:
             continue
@@ -57,3 +61,6 @@ def run_rules(cfg):
 
         if hasattr(module, "init"):
             module.init(cfg)
+
+    for rule in rules:
+        rule_runner.run(rule, cfg, plugins[rule['type']])

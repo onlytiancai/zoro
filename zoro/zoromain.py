@@ -15,6 +15,9 @@ utils.init_for_setup()
 zorocfg = utils.load_user_config(config.user_config_path)
 utils.run_rules(zorocfg)
 
+time.sleep(1000)
+
+# TODO
 #with daemon.DaemonContext():
 #    while True:
 #        time.sleep(1)
