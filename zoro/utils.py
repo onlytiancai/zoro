@@ -49,7 +49,9 @@ def load_user_config(config_path):
 def run_rules(cfg):
     plugins = {}
     rules = cfg.get('rules', [])
-    for rule in rules:
+    
+    for i, rule in enumerate(rules):
+        rule['id'] = i + 1
         module_name = rule["type"]
         if module_name in plugins:
             continue

@@ -41,8 +41,8 @@ def runall(rules, cfg, plugins):
                     p.join()
 
                 if not q.empty():
-                    logging.info('process result:%s %s', q.get(), rule['type'])
+                    logging.info('process result:%s %s(%s)', q.get(), rule['type'], rule['id'])
                 else:
-                    logging.warn('process result is empty:%s', rule['type'])
+                    logging.warn('process result is empty:%s(%s)', rule['type'], rule['id'])
         finally:
             time.sleep(run_interval)
