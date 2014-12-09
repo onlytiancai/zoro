@@ -4,9 +4,15 @@ import logging
 import time
 import multiprocessing
 
-def send_warning(rule, ret, cfg):
-    rule['keep_fail_count'] = 0
-    logging.info("send_warning:%s %s", rule['id'], ret)
+import utils
+import sender
+
+rule_plugins = {}
+
+def init(cfg):
+    plugins = utils.get_modules(cfg, "rules")
+    rule_plugins.update(plugins)
+
 
 def task_success(rule, cfg):
     success_count = rule.get('success_count', 0)
@@ -23,7 +29,7 @@ def task_fail(rule, ret, cfg):
     keep_fail_count = rule.get('keep_fail_count', 0)
     rule['keep_fail_count'] = keep_fail_count + 1 
     if keep_fail_count >= max_keep_fail_count:
-        send_warning(rule, ret, cfg)
+        sender.send(rule, ret, cfg)
     logging.debug('task_fail:%s', rule)
 
 
@@ -37,7 +43,8 @@ def run(rule, cfg, module, queue):
         logging.exception("plugin %s run error:%s", rule["type"], args)
 
 
-def runall(rules, cfg, plugins):
+def runall(cfg):
+    rules = cfg.get('rules', [])
     run_interval = cfg.get("run_interval", 60)
     run_timeout = cfg.get("run_timeout", 5)
     logging.debug("runall:%s", run_interval)
@@ -46,7 +53,7 @@ def runall(rules, cfg, plugins):
             ps = [] # p, q, rule
             for rule in rules:
                 q = multiprocessing.Queue() # 取子进程结果
-                p = multiprocessing.Process(target=run, args=(rule, cfg, plugins[rule['type']], q))
+                p = multiprocessing.Process(target=run, args=(rule, cfg, rule_plugins[rule['type']], q))
                 p.daemon = True
                 ps.append((p, q, rule))
 

@@ -14,5 +14,16 @@
         }
         ],
     "run_interval": 5,
-    "run_timeout": 5
+    "run_timeout": 5,
+    "senders": [
+        {
+            "type": "mail",
+            "args": {
+                "smtp_server": "",
+                "smtp_user": "",
+                "smtp_pass": "",
+                "to":""
+            }
+        }
+        ]
 }

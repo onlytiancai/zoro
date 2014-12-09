@@ -65,3 +65,23 @@ def run_rules(cfg):
             module.init(cfg)
 
     rule_runner.runall(rules, cfg, plugins)
+
+def get_modules(all_cfg, plugin_cfgs_name):
+    ret = {} 
+    plugin_cfgs = all_cfg.get(plugin_cfgs_name, [])
+    
+    for i, plugin_cfg in enumerate(plugin_cfgs):
+        plugin_cfg['id'] = i + 1
+        plugin_name = plugin_cfg["type"]
+        if plugin_name in ret:
+            continue
+
+        f, filename, desc = imp.find_module(plugin_name, [config.plugins_path, config.user_plugins_path])
+        module = imp.load_module(plugin_name, f, filename, desc)
+        ret[plugin_name] = module
+        logging.info("load plugins:%s %s", plugin_name, filename)
+
+        if hasattr(module, "init"):
+            module.init(all_cfg, plugin_cfg)
+
+    return ret
