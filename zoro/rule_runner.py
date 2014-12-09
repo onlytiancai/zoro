@@ -5,8 +5,8 @@ import time
 import multiprocessing
 
 def send_warning(rule, ret, cfg):
-    logging.info("send_warning:%s %s", rule, ret)
-
+    rule['keep_fail_count'] = 0
+    logging.info("send_warning:%s %s", rule['id'], ret)
 
 def task_success(rule, cfg):
     success_count = rule.get('success_count', 0)
