@@ -4,6 +4,28 @@ import logging
 import time
 import multiprocessing
 
+def send_warning(rule, ret, cfg):
+    logging.info("send_warning:%s %s", rule, ret)
+
+
+def task_success(rule, cfg):
+    success_count = rule.get('success_count', 0)
+    rule['success_count'] = success_count + 1
+    rule['keep_fail_count'] = 0
+    logging.debug('task_success:%s', rule)
+
+
+def task_fail(rule, ret, cfg):
+    fail_count = rule.get('fail_count', 0)
+    rule['fail_count'] = fail_count + 1
+
+    max_keep_fail_count = rule.get('max_keep_fail_count', cfg.get('max_keep_fail_count', 3)) 
+    keep_fail_count = rule.get('keep_fail_count', 0)
+    rule['keep_fail_count'] = keep_fail_count + 1 
+    if keep_fail_count >= max_keep_fail_count:
+        send_warning(rule, ret, cfg)
+    logging.debug('task_fail:%s', rule)
+
 
 def run(rule, cfg, module, queue):
     args = rule.get("args", {})
@@ -40,9 +62,15 @@ def runall(rules, cfg, plugins):
                     p.terminate()
                     p.join()
 
-                if not q.empty():
-                    logging.info('process result:%s %s(%s)', q.get(), rule['type'], rule['id'])
-                else:
+                if not q.empty(): # 任务执行成功, 得到结果
+                    ret = q.get()
+                    logging.info('process result:%s %s(%s)', ret , rule['type'], rule['id'])
+                    if ret: # 任务返回数据表示监控异常
+                        task_fail(rule, ret, cfg)
+                    else:
+                        task_success(rule, cfg)
+                else: # 任务执行失败，未得到结果，可能是执行超时被kill
                     logging.warn('process result is empty:%s(%s)', rule['type'], rule['id'])
+                    task_fail(rule, "execute timeout", cfg)
         finally:
             time.sleep(run_interval)
