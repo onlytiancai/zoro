@@ -16,4 +16,4 @@ def send(rule, ret, cfg):
             logging.debug("send warning:%s %s %s", name, rule, ret)
             sender.send(rule, ret, cfg)
         except:
-            logging.exception("send warning err:%s %s %s",name, rule, ret)
+            logging.exception("send warning err:%s %s %s", name, rule, ret)

@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
-import daemon
+# import daemon
 import time
 import logging
 
@@ -22,6 +22,6 @@ rule_runner.runall(zorocfg)
 time.sleep(1000)
 
 # TODO
-#with daemon.DaemonContext():
-#    while True:
-#        time.sleep(1)
+# with daemon.DaemonContext():
+#     while True:
+#         time.sleep(1)

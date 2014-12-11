@@ -7,8 +7,8 @@ import json
 import imp
 import shutil
 
-import config 
-import rule_runner 
+import config
+import rule_runner
 
 def init_for_setup():
     logging.debug("init_for_setup %s %s", config.user_config_path, config.user_plugins_path)
@@ -49,7 +49,7 @@ def load_user_config(config_path):
 def run_rules(cfg):
     plugins = {}
     rules = cfg.get('rules', [])
-    
+
     for i, rule in enumerate(rules):
         rule['id'] = i + 1
         module_name = rule["type"]
@@ -67,9 +67,9 @@ def run_rules(cfg):
     rule_runner.runall(rules, cfg, plugins)
 
 def get_modules(all_cfg, plugin_cfgs_name):
-    ret = {} 
+    ret = {}
     plugin_cfgs = all_cfg.get(plugin_cfgs_name, [])
-    
+
     for i, plugin_cfg in enumerate(plugin_cfgs):
         plugin_cfg['id'] = i + 1
         plugin_name = plugin_cfg["type"]

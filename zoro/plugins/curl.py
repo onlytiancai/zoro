@@ -7,7 +7,7 @@ def do(target):
     "返回None表示成功，否则返回错误信息"
     logging.debug("plugin curl do:%s", target)
     urllib.urlopen(target)
-    return "xx" 
+    return "curl error"  # TODO For test
 
 
 def init(all_cfg, plugin_cfg):
