@@ -15,14 +15,17 @@
         ],
     "run_interval": 5,
     "run_timeout": 5,
+    "max_keep_fail_count": 1, 
     "senders": [
         {
             "type": "mail",
             "args": {
-                "smtp_server": "",
-                "smtp_user": "",
-                "smtp_pass": "",
-                "to":""
+                "smtp_server": "smtp.163.com",
+                "smtp_user": "sendwarnings@163.com",
+                "smtp_pass": "1qaz1qaz",
+                "smtp_ssl": false,
+                "from": "sendwarnings@163.com", 
+                "to": ["wawasoft@qq.com"]
             }
         }
         ]
