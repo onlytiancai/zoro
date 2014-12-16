@@ -29,7 +29,7 @@ def task_fail(rule, ret, cfg):
     keep_fail_count = rule.get('keep_fail_count', 0)
     rule['keep_fail_count'] = keep_fail_count + 1
     if keep_fail_count >= max_keep_fail_count:
-        sender.send(rule, ret, cfg)
+        sender.sendwarnings(rule, ret)
     logging.debug('task_fail:%s', rule)
 
 
