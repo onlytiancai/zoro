@@ -13,10 +13,10 @@
             }
         }
         ],
-    "run_interval": 5,  // 监控频率
-    "run_timeout": 5,   // 监控超时时间
-    "max_keep_fail_count": 1,  // 持续几次监控异常就报警
-    "min_warning_send_interval": 60, // 两次告警的最短时间间隔，单位是分钟
+    "run_interval": 5,
+    "run_timeout": 5,
+    "max_keep_fail_count": 1,
+    "min_warning_send_interval": 20,
     "senders": [
         {
             "type": "mail",

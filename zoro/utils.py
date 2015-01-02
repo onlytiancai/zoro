@@ -11,7 +11,7 @@ import config
 import rule_runner
 
 def init_for_setup():
-    logging.debug("init_for_setup %s %s", config.user_config_path, config.user_plugins_path)
+    logging.info("init_for_setup %s %s", config.user_config_path, config.user_plugins_path)
     if not os.path.exists(config.user_plugins_path):
         os.makedirs(config.user_plugins_path)
 
@@ -42,7 +42,7 @@ def init_logger(log_dir, level='info', console=False):
 
 def load_user_config(config_path):
     cfg = json.loads(open(config_path).read())
-    logging.debug("load_user_config: %s", json.dumps(cfg, indent=4))
+    logging.info("load_user_config: %s", json.dumps(cfg, indent=4))
     return cfg
 
 

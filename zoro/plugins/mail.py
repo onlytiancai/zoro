@@ -28,6 +28,7 @@ def _get_mail_content(warnings, cfg):
 
 def send(warnings, cfg):
     logging.debug("mail send:%s", warnings)
+    return
     try:
         content = _get_mail_content(warnings, cfg)
         rule = warnings[0][0]  # 取第一个告警的rule

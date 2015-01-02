@@ -29,7 +29,7 @@ def task_fail(rule, ret, cfg):
     keep_fail_count = rule.get('keep_fail_count', 0)
     rule['keep_fail_count'] = keep_fail_count + 1
     if keep_fail_count >= max_keep_fail_count:
-        sender.sendwarnings(rule, ret)
+        sender.sendwarnings(rule, ret, cfg)
     logging.debug('task_fail:%s', rule)
 
 
@@ -47,7 +47,7 @@ def runall(cfg):
     rules = cfg.get('rules', [])
     run_interval = cfg.get("run_interval", 60)
     run_timeout = cfg.get("run_timeout", 5)
-    logging.debug("runall:%s", run_interval)
+    logging.debug("runall:run_interval=%s", run_interval)
     while True:
         try:
             ps = []  # p, q, rule

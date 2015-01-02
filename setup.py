@@ -42,7 +42,7 @@ setup(
     license='MIT License (MIT)',
     author='onlytiancai',
     tests_require=['pytest', 'tox'],
-    install_requires=[],
+    install_requires=['python-daemon'],
     cmdclass={'test': Tox},
     author_email='onlytiancai@gmail.com',
     description=u'一个可扩展的单机监控软件',

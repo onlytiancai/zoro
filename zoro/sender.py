@@ -1,14 +1,19 @@
-j! /usr/bin/env python
+#! /usr/bin/env python
 # -*- coding: utf-8 -*-
+'''
+- 有独立的线程定时发送告警, 保证单位时间内不会有太多的告警骚扰到用户
+- 被收敛的告警，在时间到了之后会自动合并，一次发送给用户
+'''
 import logging
 import threading
-import Queue
 import time
 from datetime import datetime, timedelta 
 import utils
 
+mutex = threading.Lock()
+tobe_send = []
+max_queue = 10
 sender_plugins = {}
-tobe_send = Queue.Queue(20) # 满了就算了
 warning_send_thread = None
 
 class WarningSendThread(threading.Thread):
@@ -23,18 +28,18 @@ class WarningSendThread(threading.Thread):
         logging.info("warning send thread runing")
         while True:
             try:
-                last_warning_send_at = cfg.get('last_warning_send_at', datetime.min)
-                if datetime.now() - last_warning_send_at < timedelta(self.min_warning_send_interval):
+                last_warning_send_at = self.cfg.get('last_warning_send_at', datetime.min)
+                logging.debug("warning send thread:%s %s", last_warning_send_at, datetime.now())
+                if datetime.now() - last_warning_send_at < timedelta(seconds=self.min_warning_send_interval):
                     continue
-                cfg['last_warning_send_at'] = datetime.now()
-                warnings = []
-                while not tobe_send.empty():
-                    warning = tobe_send.get()
-                    warnings.append(warning)
-                    tobe_send.task_done() 
 
-                cfg['last_warning_send_at'] = datetime.now()
-                sendwarnings(warnings, self.cfg)
+                # 复制一份后清空
+                mutex.acquire()
+                warnings = tobe_send[:]
+                tobe_send[:] = []
+                mutex.release()
+
+                _send(warnings, self.cfg)
             except:
                 logging.exception("warning send thread error")
             finally:
@@ -49,16 +54,31 @@ def init(cfg):
     sender_plugins.update(plugins)
 
 
-def _send(warnings, cfg)
+def _send(warnings, cfg):
+    if len(warnings) < 1:
+        return
+    cfg['last_warning_send_at'] = datetime.now()
     for rule, ret in warnings:
         rule['keep_fail_count'] = 0
     for name, sender in sender_plugins.items():
         try:
-            logging.debug("send warning:%s %s", name, warnings)
+            logging.info("send warning:%s %s", name, warnings)
             sender.send(warnings, cfg)
         except:
             logging.exception("send warning err:%s %s", name, warnings)
 
 
-def sendwarnings(rule, ret):
-    tobe_send.put((rule, ret))
+def sendwarnings(rule, ret, cfg):
+    last_warning_send_at = cfg.get('last_warning_send_at', datetime.min)
+    min_warning_send_interval = cfg.get("min_warning_send_interval", 60)
+    logging.info("sendwarnings recive:%s %s", rule, ret)
+
+    if datetime.now() - last_warning_send_at < timedelta(min_warning_send_interval):
+        mutex.acquire()
+        if len(tobe_send) < max_queue:
+            tobe_send.append((rule, ret))
+        else:
+            logging.info("sendwarnings queue full:%s %s", rule, ret)
+        mutex.release()
+    else:
+        _send([(rule, ret)], cfg)
