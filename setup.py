@@ -1,14 +1,19 @@
 # -*- encoding: utf-8 -*-
 from __future__ import print_function
 from setuptools import setup
-from setuptools.command.test import test as TestCommand
+from setuptools.command.install import install
+from distutils import log
 import io
 import os
 import sys
+import shutil
 
 import zoro
 
 here = os.path.abspath(os.path.dirname(__file__))
+user_home_path = os.getenv("HOME")
+user_plugins_path = os.path.join(user_home_path, '.zoro/plugins/')
+user_config_path = os.path.join(user_home_path, '.zoro/config.json')
 
 
 def read(*filenames, **kwargs):
@@ -22,18 +27,16 @@ def read(*filenames, **kwargs):
 
 long_description = read('README.md', 'CHANGES.md')
 
+class OverrideInstall(install):
+    def run(self):
+        install.run(self)
+        if not os.path.exists(user_plugins_path):
+            log.info("mkdir %s", user_plugins_path)
+            os.makedirs(user_plugins_path)
 
-class Tox(TestCommand):
-    def finalize_options(self):
-        TestCommand.finalize_options(self)
-        self.test_args = []
-        self.test_suite = True
-
-    def run_tests(self):
-        #import here, cause outside the eggs aren't loaded
-        import tox
-        errcode = tox.cmdline(self.test_args)
-        sys.exit(errcode)
+        if not os.path.exists(user_config_path):
+            log.info("copy config.json to %s", user_plugins_path)
+            shutil.copy('./zoro/etc/config.json', user_config_path)
 
 setup(
     name='zoro',
@@ -41,9 +44,8 @@ setup(
     url='https://github.com/onlytiancai/zoro',
     license='MIT License (MIT)',
     author='onlytiancai',
-    tests_require=['pytest', 'tox'],
     install_requires=['python-daemon'],
-    cmdclass={'test': Tox},
+    cmdclass={'install': OverrideInstall},
     author_email='onlytiancai@gmail.com',
     description=u'一个可扩展的单机监控软件',
     long_description=long_description,
@@ -61,7 +63,4 @@ setup(
                  'Topic :: System :: Monitoring',
                  # https://pypi.python.org/pypi?:action=list_classifiers
                  ],
-    extras_require={
-        'testing': ['pytest'],
-    }
 )
