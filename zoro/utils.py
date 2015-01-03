@@ -41,7 +41,17 @@ def init_logger(log_dir, level='info', console=False):
 
 
 def load_user_config(config_path):
-    cfg = json.loads(open(config_path).read())
+    lines = open(config_path).read().splitlines()
+
+    # 过滤掉json配置里的注释
+    json_str = ''
+    for line in lines:
+        line = line.strip()
+        if line.startswith('#'):
+            continue
+        json_str += line
+
+    cfg = json.loads(json_str)
     logging.info("load_user_config: %s", json.dumps(cfg, indent=4))
     return cfg
 

@@ -1,4 +1,12 @@
 {
+    # 每个监控任务运行频率，单位是秒 
+    "run_interval": 5,
+    # 单个监控任务执行的超时时间，单位是秒 
+    "run_timeout": 5,
+    # 单个监控任务连续几次失败后产生告警 
+    "max_keep_fail_count": 1,
+    # 两次告警之间的最小间隔，单位是秒，用户防止告警骚扰
+    "min_warning_send_interval": 20,
     "rules": [
         {
             "type": "curl",
@@ -13,10 +21,6 @@
             }
         }
         ],
-    "run_interval": 5,
-    "run_timeout": 5,
-    "max_keep_fail_count": 1,
-    "min_warning_send_interval": 20,
     "senders": [
         {
             "type": "mail",
