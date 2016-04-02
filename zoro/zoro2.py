@@ -3,15 +3,40 @@
 import ConfigParser
 import multiprocessing
 import subprocess
+import urllib
 import urllib2
 import socket
 import datetime
-
+import logging
+import logging.handlers
 
 cf = ConfigParser.ConfigParser()
 cf.read('config.ini')
 
+
+def logger(name, console=False):
+    logpath = cf.get('common', name)
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+
+    formatter = logging.Formatter('%(asctime)s %(levelname)-8s %(message)s')
+
+    h = logging.handlers.TimedRotatingFileHandler(logpath, 'D', 1, 10)
+    h.setFormatter(formatter)
+    logger.addHandler(h)
+
+    if console:
+        h = logging.StreamHandler()
+        h.setFormatter(formatter)
+        logger.addHandler(h)
+
+    return logger
+
+
+statlog = logger('statlog')
+debuglog = logger('debuglog', True)
 monitors = []
+senders = []
 
 
 class MonitorResult(object):
@@ -19,6 +44,12 @@ class MonitorResult(object):
         self.succ = succ
         self.log = log
         self.error = error
+
+    def __str__(self):
+        status = 'succ'
+        if not self.succ:
+            status = 'failed'
+        return '%s log=%s error=%s' % (status, self.log, self.error)
 
 
 class DiskMonitor(object):
@@ -202,6 +233,39 @@ class LogMonitor(object):
         return MonitorResult(True, log=log)
 
 
+class UrlSender(object):
+    def __init__(self, section):
+        self.url = cf.get(section, 'url')
+        self.timeout = 5
+        if cf.has_option(section, 'timeout'):
+            self.timeout = cf.getfloat(section, 'timeout')
+
+    def send(self, title, content):
+        debuglog.debug('urlsender title: %s', title)
+        debuglog.debug('urlsender content:\n%s', content)
+
+        data = dict(title=title, content=content)
+        postdata = {}
+        for k, v in data.iteritems():
+            postdata[k] = unicode(v).encode('utf-8')
+        postdata = urllib.urlencode(postdata)
+        try:
+            req = urllib2.Request(self.url, data=postdata)
+            rsp = urllib2.urlopen(req, timeout=self.timeout)
+            rsp = rsp.read()[:100]
+            debuglog.info('urlsend ok: %s %s', self.url, rsp)
+        except Exception, ex:
+            debuglog.error('urlsend error: %s %s', self.url, ex)
+
+
+class MailSender(object):
+    def __init__(self, section):
+        pass
+
+    def send(self, title, content):
+        pass
+
+
 for section in cf.sections():
     if section.startswith('monitor'):
         type = cf.get(section, 'type')
@@ -219,6 +283,45 @@ for section in cf.sections():
             monitors.append(ProcessMonitor(section))
         else:
             raise Exception('Unknow section: %s' % section)
+    elif section.startswith('sender'):
+        type = cf.get(section, 'type')
+        if type == 'url':
+            senders.append(UrlSender(section))
+        elif type == 'mail':
+            senders.append(MailSender(section))
+        else:
+            raise Exception('Unknow section: %s' % section)
+
+
+def process_results(results):
+    for monitor, result in results:
+        statlog.info("%s %s", monitor.section, result.succ)
+        if result.succ:
+            debuglog.debug("%s: %s", monitor.section, result)
+        else:
+            debuglog.error("%s: %s", monitor.section, result)
+
+    title = u'机器告警(zoro)'
+    content = ''
+    filters = filter(lambda x: not x[1].succ, results)
+    for m, r in filters:
+        content += '=======================\n'
+        content += 'name: %s\n' % m.section
+        content += 'description: %s\n' % m
+
+        content += 'error:\n'
+        content += '%s\n' % (r.error)
+        content += '===\n'
+
+        if r.log:
+            content += 'log:\n'
+            content += '%s\n' % (r.log)
+            content += '===\n'
+
+        content += '=======================\n'
+
+    for sender in senders:
+        sender.send(title, content)
 
 
 def run_monitor(monitor, q):
@@ -238,23 +341,20 @@ def main():
         ps.append((m, p, q))
         p.start()
 
+    results = []
     for m, p, q in ps:
         p.join(1000)
         if p.is_alive():
             p.terminate()
             p.join()
 
+        r = MonitorResult(False, 'process error: get none')
         if not q.empty():
             r = q.get()
-            if r.succ:
-                print 'succ: %s' % m
-                print '\t', r.log
-            else:
-                print 'error: %s' % m 
-                print '\t', r.error
-        else:
-            print 'error: %s' % m 
-            print '%p excute error' % (p)
+
+        results.append((m, r))
+
+    process_results(results)
 
 
 if __name__ == '__main__':
