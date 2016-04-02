@@ -53,6 +53,7 @@ setup(
     include_package_data=True,
     platforms='any',
     test_suite='zoro.test.test_zoro',
+    entry_points = {"console_scripts": ["zoro= zoro.zoromain:run"]},
     classifiers=['Programming Language :: Python',
                  'Development Status :: 3 - Alpha',
                  'Natural Language :: Chinese (Simplified)',
