@@ -9,6 +9,8 @@ import socket
 import datetime
 import logging
 import logging.handlers
+import pickle
+import os
 
 cf = ConfigParser.ConfigParser()
 cf.read('config.ini')
@@ -16,6 +18,9 @@ cf.read('config.ini')
 
 def logger(name, console=False):
     logpath = cf.get('common', name)
+    if not os.path.exists(os.path.dirname(logpath)):
+        os.makedirs(os.path.dirname(logpath))
+
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
 
@@ -37,6 +42,10 @@ statlog = logger('statlog')
 debuglog = logger('debuglog', True)
 monitors = []
 senders = []
+
+dbpath = './zoro.db'
+if cf.has_option('common', 'dbpath'):
+    dbpath = cf.get('common', 'dbpath')
 
 
 class MonitorResult(object):
@@ -293,6 +302,35 @@ for section in cf.sections():
             raise Exception('Unknow section: %s' % section)
 
 
+def willsend():
+    '一小时内只告警一次'
+
+    db = {}
+    if os.path.exists(dbpath):
+        f = open(dbpath, 'r')
+        db = pickle.load(f)
+        f.close()
+
+    now = datetime.datetime.now()
+    lastsend = now - datetime.timedelta(days=365, seconds=100, microseconds=55)
+    if 'lastsend' in db:
+        lastsend = db['lastsend']
+
+    diff = now - lastsend
+    debuglog.info('willsend: lastsend=%s, diff=%s', lastsend, diff)
+
+    total_seconds = diff.days * 24 * 60 * 60
+    total_seconds += diff.seconds
+    if total_seconds > 60 * 60:
+        f = open(dbpath, 'wb')
+        db['lastsend'] = now
+        pickle.dump(db, f)
+        f.close()
+        return True
+
+    return False
+
+
 def process_results(results):
     for monitor, result in results:
         statlog.info("%s %s", monitor.section, result.succ)
@@ -320,8 +358,9 @@ def process_results(results):
 
         content += '=======================\n'
 
-    for sender in senders:
-        sender.send(title, content)
+    if filters and willsend():
+        for sender in senders:
+            sender.send(title, content)
 
 
 def run_monitor(monitor, q):
