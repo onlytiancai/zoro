@@ -11,8 +11,11 @@ import logging
 import logging.handlers
 import pickle
 import os
+import uuid
+import json
 
 cf = ConfigParser.ConfigParser()
+cf.optionxform = str
 cf.read('config.ini')
 
 
@@ -245,21 +248,57 @@ class LogMonitor(object):
 class UrlSender(object):
     def __init__(self, section):
         self.url = cf.get(section, 'url')
+
         self.timeout = 5
         if cf.has_option(section, 'timeout'):
             self.timeout = cf.getfloat(section, 'timeout')
 
+        self.datatype = 'json'
+        if cf.has_option(section, 'datatype'):
+            self.datatype = cf.get(section, 'datatype')
+
+        if self.datatype == 'json':
+            self.headers = {'Content-type': 'application/json'}
+        else:
+            self.headers = {'Content-type':
+                            'application/x-www-form-urlencoded'}
+
+        data = {}
+        items = cf.items(section)
+        for item in items:
+            if item[0].startswith('data-'):
+                data[item[0][5:]] = item[1]
+
+        self.data = data
+
     def send(self, title, content):
-        debuglog.debug('urlsender title: %s', title)
+        eventid = str(uuid.uuid4())
+        debuglog.debug('urlsender title: %s %s', eventid, title)
         debuglog.debug('urlsender content:\n%s', content)
 
-        data = dict(title=title, content=content)
-        postdata = {}
-        for k, v in data.iteritems():
-            postdata[k] = unicode(v).encode('utf-8')
-        postdata = urllib.urlencode(postdata)
+        url = self.url
+        url = url.replace('{{title}}', title)
+        url = url.replace('{{content}}', content)
+        url = url.replace('{{eventid}}', eventid)
+
+        data = {}
+        for k, v in self.data.iteritems():
+            v = v.replace('{{title}}', title)
+            v = v.replace('{{content}}', content)
+            v = v.replace('{{eventid}}', eventid)
+            data[k] = v
+
+        if self.datatype != 'json':
+            postdata = {}
+            for k, v in data.iteritems():
+                postdata[k] = unicode(v).encode('utf-8')
+            postdata = urllib.urlencode(postdata)
+        else:
+            postdata = json.dumps(data, indent=4)
+
         try:
-            req = urllib2.Request(self.url, data=postdata)
+            req = urllib2.Request(url, data=postdata,
+                                  headers=self.headers)
             rsp = urllib2.urlopen(req, timeout=self.timeout)
             rsp = rsp.read()[:100]
             debuglog.info('urlsend ok: %s %s', self.url, rsp)
