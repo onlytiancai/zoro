@@ -1,7 +1,8 @@
 # -*- coding: utf8 -*-
 
 import ConfigParser
-import multiprocessing
+import Queue
+import threading
 import subprocess
 import urllib
 import urllib2
@@ -11,8 +12,9 @@ import logging
 import logging.handlers
 import pickle
 import os
-import uuid
-import json
+import commands
+import time
+import sys
 
 cf = ConfigParser.ConfigParser()
 cf.optionxform = str
@@ -25,11 +27,11 @@ def logger(name, console=False):
         os.makedirs(os.path.dirname(logpath))
 
     logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
 
     formatter = logging.Formatter('%(asctime)s %(levelname)-8s %(message)s')
 
-    h = logging.handlers.TimedRotatingFileHandler(logpath, 'D', 1, 10)
+    h = logging.handlers.TimedRotatingFileHandler(logpath, 'H', 1, 10)
     h.setFormatter(formatter)
     logger.addHandler(h)
 
@@ -46,9 +48,34 @@ debuglog = logger('debuglog', True)
 monitors = []
 senders = []
 
-dbpath = './zoro.db'
+DBPATH = './zoro.db'
 if cf.has_option('common', 'dbpath'):
-    dbpath = cf.get('common', 'dbpath')
+    DBPATH = cf.get('common', 'dbpath')
+
+TASK_TIMEOUT = 5
+if cf.has_option('common', 'task_timeout'):
+    TASK_TIMEOUT = cf.get('common', 'task_timeout')
+
+try:
+    import sender
+    senders.append(sender.Sender())
+    debuglog.info('load ext sender ok')
+except ImportError:
+    pass
+except: 
+    debuglog.exception('load ext sender err')
+
+
+def uuid():
+    return commands.getstatusoutput('uuidgen')
+
+
+def json_dumps(obj):
+    try:
+        import json
+        return json.dumps(obj, indent=4)
+    except:
+        return obj #TODO, for py 2.4
 
 
 class MonitorResult(object):
@@ -128,7 +155,12 @@ class HttpMonitor(object):
 
     def run(self):
         try:
-            rsp = urllib2.urlopen(self.url, timeout=self.timeout)
+            version = sys.version_info
+            if version[0] == 2 and version[1] == 4:
+                rsp = urllib2.urlopen(self.url)
+            else:
+                rsp = urllib2.urlopen(self.url, timeout=self.timeout)
+
             rsp = rsp.read()[:100]
             return MonitorResult(True, log=rsp)
         except Exception, ex:
@@ -213,6 +245,11 @@ class LogMonitor(object):
     def __init__(self, section):
         self.section = section
         self.logpath = cf.get(section, 'logpath')
+        if cf.has_option(section, 'filetimeformat'):
+            filetimeformat = cf.get(section, 'filetimeformat')
+            filetime = datetime.datetime.now().strftime(filetimeformat)
+            self.logpath = self.logpath.replace('{time}', filetime)
+
         self.timeformat = cf.get(section, 'timeformat')
         self.max = cf.getint(section, 'max')
         self.keyword = cf.get(section, 'keyword').strip("'").strip('"')
@@ -230,15 +267,15 @@ class LogMonitor(object):
         cmd = ['/bin/grep', logtime]
         grep = subprocess.Popen(cmd, stdout=subprocess.PIPE, stdin=tail.stdout)
 
-        cmd = ['/bin/grep', self.keyword]
+        cmd = ['/bin/grep', '-E', self.keyword]
         grep = subprocess.Popen(cmd, stdout=subprocess.PIPE, stdin=grep.stdout)
 
         cmd = ['/usr/bin/wc', '-l']
         wc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stdin=grep.stdout)
         wc = int(wc.communicate()[0])
 
-        log = '`grep "%s" %s | grep "%s" | wc -l` = %s ' \
-            % (logtime, self.logpath, self.keyword, wc)
+        log = '`tail -n 100000 "%s" | grep "%s" | grep "%s" | wc -l` = %s ' \
+            % (self.logpath, logtime, self.keyword, wc)
         if wc > self.max:
             return MonitorResult(False, error=log)
 
@@ -272,8 +309,8 @@ class UrlSender(object):
         self.data = data
 
     def send(self, title, content):
-        eventid = str(uuid.uuid4())
-        debuglog.debug('urlsender title: %s %s', eventid, title)
+        eventid = str(uuid())
+        debuglog.info('urlsender title: %s %s', eventid, title)
         debuglog.debug('urlsender content:\n%s', content)
 
         url = self.url
@@ -294,12 +331,18 @@ class UrlSender(object):
                 postdata[k] = unicode(v).encode('utf-8')
             postdata = urllib.urlencode(postdata)
         else:
-            postdata = json.dumps(data, indent=4)
+            postdata = json_dumps(data, indent=4)
 
         try:
             req = urllib2.Request(url, data=postdata,
                                   headers=self.headers)
-            rsp = urllib2.urlopen(req, timeout=self.timeout)
+
+            version = sys.version_info
+            if version[0] == 2 and version[1] == 4:
+                rsp = urllib2.urlopen(self.url)
+            else:
+                rsp = urllib2.urlopen(self.url, timeout=self.timeout)
+
             rsp = rsp.read()[:100]
             debuglog.info('urlsend ok: %s %s', self.url, rsp)
         except Exception, ex:
@@ -345,8 +388,8 @@ def willsend():
     '一小时内只告警一次'
 
     db = {}
-    if os.path.exists(dbpath):
-        f = open(dbpath, 'r')
+    if os.path.exists(DBPATH):
+        f = open(DBPATH, 'r')
         db = pickle.load(f)
         f.close()
 
@@ -361,7 +404,7 @@ def willsend():
     total_seconds = diff.days * 24 * 60 * 60
     total_seconds += diff.seconds
     if total_seconds > 60 * 60:
-        f = open(dbpath, 'wb')
+        f = open(DBPATH, 'wb')
         db['lastsend'] = now
         pickle.dump(db, f)
         f.close()
@@ -374,7 +417,7 @@ def process_results(results):
     for monitor, result in results:
         statlog.info("%s %s", monitor.section, result.succ)
         if result.succ:
-            debuglog.debug("%s: %s", monitor.section, result)
+            debuglog.info("%s: %s", monitor.section, result)
         else:
             debuglog.error("%s: %s", monitor.section, result)
 
@@ -402,32 +445,41 @@ def process_results(results):
             sender.send(title, content)
 
 
-def run_monitor(monitor, q):
-    try:
-        r = monitor.run()
-        q.put(r)
-    except Exception, ex:
-        q.put(MonitorResult(False, error=str(ex)))
+class MonitorThred(threading.Thread):
+    def __init__(self, monitor, q):
+        threading.Thread.__init__(self)
+        self.monitor = monitor
+        self.q = q
+        self.daemon = True
+        self.setDaemon(True)
+
+    def run(self):
+        try:
+            debuglog.info('task begin: %s', self.monitor.section)
+            r = self.monitor.run()
+            self.q.put(r)
+            debuglog.debug('task end: %s', self.monitor.section)
+        except Exception, ex:
+            debuglog.debug('task end error: %s', self.monitor.section)
+            debuglog.exception(ex)
+            self.q.put(MonitorResult(False, error=str(ex)))
 
 
 def main():
     ps = []
     for m in monitors:
-        q = multiprocessing.Queue()
-        p = multiprocessing.Process(target=run_monitor, args=(m, q))
-        p.daemon = True
+        q = Queue.Queue()
+        p = MonitorThred(m, q)
         ps.append((m, p, q))
         p.start()
 
     results = []
+    time.sleep(TASK_TIMEOUT)
     for m, p, q in ps:
-        p.join(1000)
-        if p.is_alive():
-            p.terminate()
-            p.join()
+        debuglog.info('check p: %s %s', m.section, p.isAlive())
 
         r = MonitorResult(False, 'process error: get none')
-        if not q.empty():
+        if not p.isAlive() and  not q.empty():
             r = q.get()
 
         results.append((m, r))
