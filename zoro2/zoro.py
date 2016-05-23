@@ -25,11 +25,11 @@ def logger(name, console=False):
         os.makedirs(os.path.dirname(logpath))
 
     logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
 
     formatter = logging.Formatter('%(asctime)s %(levelname)-8s %(message)s')
 
-    h = logging.handlers.TimedRotatingFileHandler(logpath, 'D', 1, 10)
+    h = logging.handlers.TimedRotatingFileHandler(logpath, 'H', 1, 10)
     h.setFormatter(formatter)
     logger.addHandler(h)
 
@@ -49,6 +49,15 @@ senders = []
 dbpath = './zoro.db'
 if cf.has_option('common', 'dbpath'):
     dbpath = cf.get('common', 'dbpath')
+
+try:
+    import sender
+    senders.append(sender.Sender())
+    debuglog.info('load ext sender ok')
+except ImportError:
+    pass
+except: 
+    debuglog.exception('load ext sender err')
 
 
 class MonitorResult(object):
@@ -213,6 +222,11 @@ class LogMonitor(object):
     def __init__(self, section):
         self.section = section
         self.logpath = cf.get(section, 'logpath')
+        if cf.has_option(section, 'filetimeformat'):
+            filetimeformat = cf.get(section, 'filetimeformat')
+            filetime = datetime.datetime.now().strftime(filetimeformat)
+            self.logpath = self.logpath.replace('{time}', filetime)
+
         self.timeformat = cf.get(section, 'timeformat')
         self.max = cf.getint(section, 'max')
         self.keyword = cf.get(section, 'keyword').strip("'").strip('"')
@@ -230,15 +244,15 @@ class LogMonitor(object):
         cmd = ['/bin/grep', logtime]
         grep = subprocess.Popen(cmd, stdout=subprocess.PIPE, stdin=tail.stdout)
 
-        cmd = ['/bin/grep', self.keyword]
+        cmd = ['/bin/grep', '-E', self.keyword]
         grep = subprocess.Popen(cmd, stdout=subprocess.PIPE, stdin=grep.stdout)
 
         cmd = ['/usr/bin/wc', '-l']
         wc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stdin=grep.stdout)
         wc = int(wc.communicate()[0])
 
-        log = '`grep "%s" %s | grep "%s" | wc -l` = %s ' \
-            % (logtime, self.logpath, self.keyword, wc)
+        log = '`tail -n 100000 "%s" | grep "%s" | grep "%s" | wc -l` = %s ' \
+            % (self.logpath, logtime, self.keyword, wc)
         if wc > self.max:
             return MonitorResult(False, error=log)
 
@@ -274,7 +288,7 @@ class UrlSender(object):
     def send(self, title, content):
         eventid = str(uuid.uuid4())
         debuglog.debug('urlsender title: %s %s', eventid, title)
-        debuglog.debug('urlsender content:\n%s', content)
+        debuglog.info('urlsender content:\n%s', content)
 
         url = self.url
         url = url.replace('{{title}}', title)
@@ -374,7 +388,7 @@ def process_results(results):
     for monitor, result in results:
         statlog.info("%s %s", monitor.section, result.succ)
         if result.succ:
-            debuglog.debug("%s: %s", monitor.section, result)
+            debuglog.info("%s: %s", monitor.section, result)
         else:
             debuglog.error("%s: %s", monitor.section, result)
 
